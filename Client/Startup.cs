@@ -1,8 +1,5 @@
-﻿using System;
-using System.IdentityModel.Tokens.Jwt;
+﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,10 +13,9 @@ namespace Client
     {
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
-            
             IdentityModelEventSource.ShowPII = true;
             JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+            services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
             
             services.AddAuthentication(options =>
                 {
@@ -37,18 +33,20 @@ namespace Client
                     options.SignInScheme = "cookie";
                     options.RequireHttpsMetadata = false;
 
+                    // Allows automatic decryption of JWE identity tokens
                     options.TokenValidationParameters = new TokenValidationParameters
                     {
                         TokenDecryptionKey = new X509SecurityKey(new X509Certificate2("idsrv3test.pfx", "idsrv3test"))
                     };
 
-                    options.ProtocolValidator = new TestProtocolValidator
+                    // Allows JWEs to be validated (work-around for https://github.com/aspnet/AspNetCore/issues/9154)
+                    options.ProtocolValidator = new JweProtocolValidator
                     {
-                        RequireStateValidation = false,
-                        NonceLifetime = TimeSpan.FromMinutes(15)
+                        RequireStateValidation = options.ProtocolValidator.RequireStateValidation,
+                        NonceLifetime = options.ProtocolValidator.NonceLifetime
                     };
 
-                    options.Events = new OpenIdConnectEvents
+                    /*options.Events = new OpenIdConnectEvents
                     {
                         // after initial validation, but before calling ProtocolValidator
                         OnTokenValidated = context =>
@@ -56,7 +54,11 @@ namespace Client
                             context.SecurityToken = context.SecurityToken.InnerToken;
                             return Task.CompletedTask;
                         }
-                    };
+
+                        // https://github.com/aspnet/AspNetCore/issues/9154
+                        // no event to handle JWE identity tokens from BOTH authorization endpoint and then token endpoint...
+
+                    };*/
                 });
         }
 
@@ -71,10 +73,8 @@ namespace Client
         }
     }
 
-    public class TestProtocolValidator : OpenIdConnectProtocolValidator
+    public class JweProtocolValidator : OpenIdConnectProtocolValidator
     {
-        public TestProtocolValidator() : base() { }
-
         protected override void ValidateIdToken(OpenIdConnectProtocolValidationContext validationContext)
         {
             if (validationContext.ValidatedIdToken.InnerToken != null)
