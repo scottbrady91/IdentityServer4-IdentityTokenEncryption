@@ -1,4 +1,5 @@
-﻿using System.Security.Cryptography.X509Certificates;
+﻿using System.IdentityModel.Tokens.Jwt;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using IdentityServer4;
 using IdentityServer4.Models;
@@ -26,11 +27,15 @@ namespace IdentityServer
             {
                 var payload = await base.CreatePayloadAsync(token);
 
+                var signingCredentials = await Keys.GetSigningCredentialsAsync();
+                X509SigningCredentials test = null;
+                if (signingCredentials is X509SigningCredentials) test = signingCredentials as X509SigningCredentials;
+
                 var handler = new JsonWebTokenHandler();
                 var jwe = handler.CreateToken(
-                    payload.SerializeToJson(), 
-                    await Keys.GetSigningCredentialsAsync(), 
-                    new X509EncryptingCredentials(new X509Certificate2("idsrv3test.cer"))); // TODO: Load from config per client
+                    payload.SerializeToJson(),
+                    test ?? signingCredentials,
+                    new X509EncryptingCredentials(new X509Certificate2("idsrv3test.cer"))); // hardcoded, instead load public key per client
 
                 return jwe;
             }

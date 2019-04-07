@@ -1,4 +1,5 @@
-﻿using IdentityServer4.Quickstart.UI;
+﻿using System.Security.Cryptography.X509Certificates;
+using IdentityServer4.Quickstart.UI;
 using IdentityServer4.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,7 +23,7 @@ namespace IdentityServer
                 .AddInMemoryIdentityResources(Config.GetIdentityResources())
                 .AddInMemoryApiResources(Config.GetApis())
                 .AddInMemoryClients(Config.GetClients())
-                .AddDeveloperSigningCredential();
+                .AddSigningCredential(new X509Certificate2("testclient.pfx", "test"));
 
             services.AddTransient<ITokenCreationService, JweTokenCreationService>();
         }
